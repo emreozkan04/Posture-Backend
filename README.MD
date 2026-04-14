@@ -42,4 +42,4 @@ docker logs posture-server
 
 ## Network Configuration
 
-The API listens on port 8000. For local testing, clients can connect via `127.0.0.1`. For cloud deployments, the WebRTC configuration utilizes Google's STUN server (`stun.l.google.com:19302`) to resolve public IP addresses and successfully traverse NAT firewalls.
+The API listens on port 8000. For local testing, clients can connect via `127.0.0.1`
