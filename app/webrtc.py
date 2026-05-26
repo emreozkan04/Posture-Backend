@@ -6,7 +6,7 @@ from app.analyzer import PostureAnalyzer
 
 active_connections = set()
 
-analyzer = PostureAnalyzer()
+analyzer = PostureAnalyzer("pose_landmarker_full.task")
 
 async def handle_offer(sdp: str, type: str):
     offer = RTCSessionDescription(sdp=sdp, type=type)

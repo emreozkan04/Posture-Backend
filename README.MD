@@ -2,6 +2,8 @@
 
 This repository contains a containerized backend service designed to analyze real-time video streams and detect posture flaws. Built with FastAPI, WebRTC (aiortc), and Google's MediaPipe, the application receives video frames from a client, evaluates the user's posture, and streams back immediate warnings via a WebRTC data channel.
 
+The backend assumes a front facing camera placed roughly shoulder height to the user. 
+
 ## Architecture
 
 The project is divided into three modular components:

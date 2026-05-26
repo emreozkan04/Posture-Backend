@@ -2,10 +2,10 @@ import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-import numpy as np
+import math
 
 class PostureAnalyzer:
-    def __init__(self, model_path: str = 'pose_landmarker_lite.task'):
+    def __init__(self, model_path: str = 'pose_landmarker_full.task'):
         base_options = python.BaseOptions(model_asset_path=model_path)
         options = vision.PoseLandmarkerOptions(
             base_options=base_options,
@@ -15,46 +15,42 @@ class PostureAnalyzer:
         )
         self.detector = vision.PoseLandmarker.create_from_options(options)
 
-    @staticmethod
-    def calculate_angle(a, b, c):
-        a = np.array(a)
-        b = np.array(b)
-        c = np.array(c)
-
-        radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
-        angle = np.abs(radians*180.0/np.pi)
-
-        if angle > 180.0:
-            angle = 360 - angle
-        return angle
-
     def evaluate_posture(self, landmarks):
         warnings = []
         
-        l_ear, r_ear = landmarks[7], landmarks[8]
-        l_sh, r_sh = landmarks[11], landmarks[12]
-        l_hip, r_hip = landmarks[23], landmarks[24]
+        # We only need the nose and the shoulders for a desk-bound posture check
+        nose = landmarks[0]
+        l_sh = landmarks[11]
+        r_sh = landmarks[12]
 
-        avg_shoulder_z = (l_sh.z + r_sh.z) / 2
-        avg_hip_z = (l_hip.z + r_hip.z) / 2
-        if (avg_shoulder_z - avg_hip_z) < -0.25:
-            warnings.append("Slouching Detected (Depth)")
-        
-        shoulder_width = abs(l_sh.x - r_sh.x)
-        avg_torso_length = (abs(l_sh.y - l_hip.y) + abs(r_sh.y - r_hip.y)) / 2
-        compression_ratio = avg_torso_length / shoulder_width if shoulder_width > 0 else 100 
-        
-        if compression_ratio < 1.0:
-            warnings.append("Slouching Detected (Compression)")
+        # Ensure the upper body is actually visible before running heuristics
+        if nose.visibility < 0.5 or l_sh.visibility < 0.5 or r_sh.visibility < 0.5:
+            return ["Low Visibility - Please sit in frame"]
 
-        if abs(l_sh.y - r_sh.y) > 0.04: 
+        # 1. Calculate the reference scale (Shoulder Width)
+        shoulder_width = math.hypot(
+            l_sh.x - r_sh.x, 
+            l_sh.y - r_sh.y
+        )
+        
+        # Prevent division by zero
+        if shoulder_width < 1e-5:
+            return warnings
+
+        # 2. Check for Uneven Shoulders
+        y_diff = abs(l_sh.y - r_sh.y)
+        tilt_ratio = y_diff / shoulder_width
+        
+        if tilt_ratio > 0.08:  # 8% tilt threshold
             warnings.append("Uneven Shoulders")
 
-        left_neck_angle = self.calculate_angle([l_ear.x, l_ear.y], [l_sh.x, l_sh.y], [l_hip.x, l_hip.y])
-        right_neck_angle = self.calculate_angle([r_ear.x, r_ear.y], [r_sh.x, r_sh.y], [r_hip.x, r_hip.y])
+        # 3. Check for Slouching (Forward Head Posture)
+        shoulder_midpoint_y = (l_sh.y + r_sh.y) / 2.0
+        neck_height = shoulder_midpoint_y - nose.y
+        posture_ratio = neck_height / shoulder_width
         
-        if ((left_neck_angle + right_neck_angle) / 2) < 150:
-            warnings.append("Forward Head Posture")
+        if posture_ratio < 0.7:  # 70% height-to-width threshold
+            warnings.append("Slouching Detected")
 
         return warnings
 

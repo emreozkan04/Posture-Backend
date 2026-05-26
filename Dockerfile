@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
-COPY pose_landmarker_lite.task .
+COPY pose_landmarker_full.task .
 
 EXPOSE 8000
 
